@@ -62,7 +62,7 @@ class TestPhonemConverter(unittest.TestCase):
             epitran.Epitran('deu-Latn'))
 
         self.assertTrue(check_phonem_converter(
-            phonem_converter, 'Hallo, das ist ein Test', 'haloː, dɑːs ɪst ain tɛst'))
+            phonem_converter, 'Hallo, das ist ein Test', 'haloː, daːs ɪst aɪ̯n tɛst'))
 
 
 trainer_SST_lambda = {}
@@ -74,11 +74,11 @@ class TestScore(unittest.TestCase):
     def test_exact_transcription(self):
         words_real = 'Ich habe sehr viel glück, am leben und gesund zu sein'
 
-        real_and_transcribed_words, _, _ = trainer_SST_lambda['de'].matchSampleAndRecordedWords(
+        _, real_and_transcribed_words_ipa, _ = trainer_SST_lambda['de'].matchSampleAndRecordedWords(
             words_real, words_real)
 
         pronunciation_accuracy, _ = trainer_SST_lambda['de'].getPronunciationAccuracy(
-            real_and_transcribed_words)
+            real_and_transcribed_words_ipa)
 
         self.assertTrue(int(pronunciation_accuracy) == 100)
 
@@ -86,13 +86,13 @@ class TestScore(unittest.TestCase):
         words_real = 'Ich habe sehr viel glück, am leben und gesund zu sein'
         words_transcribed = 'Ic hab zeh viel guck am und gesund tu sein'
 
-        real_and_transcribed_words, _, _ = trainer_SST_lambda['de'].matchSampleAndRecordedWords(
+        _, real_and_transcribed_words_ipa, _ = trainer_SST_lambda['de'].matchSampleAndRecordedWords(
             words_real, words_transcribed)
 
         pronunciation_accuracy, _ = trainer_SST_lambda['de'].getPronunciationAccuracy(
-            real_and_transcribed_words)
+            real_and_transcribed_words_ipa)
 
-        self.assertTrue(int(pronunciation_accuracy) == 71)
+        self.assertTrue(int(pronunciation_accuracy) == 57)
 
 
 if __name__ == '__main__':

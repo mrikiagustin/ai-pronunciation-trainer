@@ -20,6 +20,11 @@ def main():
     return render_template('main.html')
 
 
+@app.route(rootPath+'/shadowing')
+def shadowing():
+    return render_template('shadowing.html')
+
+
 @app.route(rootPath+'/getAudioFromText', methods=['POST'])
 def getAudioFromText():
     event = {'body': json.dumps(request.get_json(force=True))}

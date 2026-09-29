@@ -8,6 +8,7 @@ import epitran
 import ModelInterfaces as mi
 import AIModels
 import RuleBasedModels
+from phoneme_assessment import ipa_units
 from string import punctuation
 import time
 
@@ -91,7 +92,7 @@ class PronunciationTrainer:
             word_locations, mapped_words_indices)
 
         pronunciation_accuracy, current_words_pronunciation_accuracy = self.getPronunciationAccuracy(
-            real_and_transcribed_words)  # _ipa
+            real_and_transcribed_words_ipa)
 
         pronunciation_categories = self.getWordsPronunciationCategory(
             current_words_pronunciation_accuracy)
@@ -123,10 +124,13 @@ class PronunciationTrainer:
         start_time = []
         end_time = []
         for word_idx in range(len(mapped_words_indices)):
-            start_time.append(float(word_locations[mapped_words_indices[word_idx]]
-                                    [0])/self.sampling_rate)
-            end_time.append(float(word_locations[mapped_words_indices[word_idx]]
-                                  [1])/self.sampling_rate)
+            mapped_index = mapped_words_indices[word_idx]
+            if mapped_index < 0 or mapped_index >= len(word_locations):
+                start_time.append(-1.0)
+                end_time.append(-1.0)
+                continue
+            start_time.append(float(word_locations[mapped_index][0])/self.sampling_rate)
+            end_time.append(float(word_locations[mapped_index][1])/self.sampling_rate)
         return ' '.join([str(time) for time in start_time]), ' '.join([str(time) for time in end_time])
 
     ##################### END ASR Functions ###########################
@@ -160,18 +164,26 @@ class PronunciationTrainer:
         current_words_pronunciation_accuracy = []
         for pair in real_and_transcribed_words_ipa:
 
-            real_without_punctuation = self.removePunctuation(pair[0]).lower()
+            real_without_punctuation = ipa_units(
+                self.removePunctuation(pair[0]).lower())
+            transcribed_without_punctuation = ipa_units(
+                self.removePunctuation(pair[1]).lower())
             number_of_word_mismatches = WordMetrics.edit_distance_python(
-                real_without_punctuation, self.removePunctuation(pair[1]).lower())
+                real_without_punctuation, transcribed_without_punctuation)
             total_mismatches += number_of_word_mismatches
             number_of_phonemes_in_word = len(real_without_punctuation)
             number_of_phonemes += number_of_phonemes_in_word
 
-            current_words_pronunciation_accuracy.append(float(
-                number_of_phonemes_in_word-number_of_word_mismatches)/number_of_phonemes_in_word*100)
+            if number_of_phonemes_in_word == 0:
+                current_words_pronunciation_accuracy.append(0.0)
+            else:
+                current_words_pronunciation_accuracy.append(float(
+                    number_of_phonemes_in_word-number_of_word_mismatches)/number_of_phonemes_in_word*100)
 
-        percentage_of_correct_pronunciations = (
-            number_of_phonemes-total_mismatches)/number_of_phonemes*100
+        percentage_of_correct_pronunciations = 0.0
+        if number_of_phonemes:
+            percentage_of_correct_pronunciations = (
+                number_of_phonemes-total_mismatches)/number_of_phonemes*100
 
         return np.round(percentage_of_correct_pronunciations), current_words_pronunciation_accuracy
 
@@ -192,5 +204,7 @@ class PronunciationTrainer:
 
     def preprocessAudio(self, audio: torch.tensor) -> torch.tensor:
         audio = audio-torch.mean(audio)
-        audio = audio/torch.max(torch.abs(audio))
+        peak = torch.max(torch.abs(audio))
+        if peak > 0:
+            audio = audio/peak
         return audio

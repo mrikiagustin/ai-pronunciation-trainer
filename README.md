@@ -26,6 +26,38 @@ You'll also need ffmpeg, which you can download from here https://ffmpeg.org/dow
 
 You should be able to run it locally without any major issues as long as you’re using a recent python 3.X version.  
 
+## Phoneme-level assessment
+
+Recorded speech is assessed at phone level with a local multilingual Wav2Vec2
+CTC model. The model is loaded lazily on the first scored recording and cached
+by Hugging Face, so the first request takes longer and requires an internet
+connection. The default model download is approximately 1.3 GB. Later requests
+run on the local CPU or CUDA GPU.
+
+The `/GetAccuracyFromRecordedAudio` response contains a
+`phoneme_assessment` object with a score, observed phone, status, and timestamp
+for every expected phone. `method: "acoustic_ctc_gop"` means the score came
+from audio posteriors. If the model is disabled or cannot be loaded, the API
+continues with `method: "transcript_ipa_fallback"`; fallback scores must not be
+treated as acoustic scores.
+
+For acoustic assessment, `ipa_transcript` and `recognized_phones` contain the
+model's unconstrained phone decoding of the audio. The separate
+`asr_ipa_transcript` field contains IPA derived from Whisper's text transcript.
+`recognized_phones_by_word` is an array with one IPA value per reference word,
+and `recognized_phones_grouped` joins those values with ` | ` for display.
+
+The defaults can be changed with environment variables:
+
+```
+ENABLE_PHONEME_ASSESSMENT=0
+PHONEME_MODEL_ID=facebook/wav2vec2-xlsr-53-espeak-cv-ft
+```
+
+The acoustic score is GOP-like but not calibrated against human teacher
+ratings. Production thresholds should be calibrated per language and phone
+using labelled native and learner recordings.
+
 ## Online version
 For the people who don’t feel comfortable running code or just want to have a quick way to use the tool, I hosted an online version of it at https://aipronunciationtr.com. It should work well in desktop-chrome, any other browser is not officially supported, although most of the functionality should work fine. 
  
@@ -59,4 +91,4 @@ If you language is not supported by Whisper, you need to have an Speech-To-Text 
 #### Frontend 
 
 1. In the "callback.js" function, add a case for your language 
-2. In the "main.html", add your language in the "languageBox" with corresponding call to the javascript function. 
+2. In the "main.html", add your language in the "languageBox" with corresponding call to the javascript function.

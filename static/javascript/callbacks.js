@@ -24,6 +24,8 @@ let languageFound = true;
 let currentSoundRecorded = false;
 let currentText, currentIpa, real_transcripts_ipa, matched_transcripts_ipa;
 let wordCategories;
+let phonemeAssessmentWords = [];
+let phonemeAssessmentMethod = null;
 let startTime, endTime;
 
 // API related variables 
@@ -196,6 +198,8 @@ const getNextSample = async () => {
                 document.getElementById("recorded_ipa_script").innerHTML = ""
                 document.getElementById("pronunciation_accuracy").innerHTML = "";
                 document.getElementById("single_word_ipa_pair").innerHTML = "Reference | Spoken"
+                phonemeAssessmentWords = [];
+                phonemeAssessmentMethod = null;
                 document.getElementById("section_accuracy").innerHTML = "| Score: " + currentScore.toString() + " - (" + currentSample.toString() + ")";
                 currentSample += 1;
 
@@ -230,9 +234,31 @@ const updateRecordingState = async () => {
 
 const generateWordModal = (word_idx) => {
 
+    const assessment = phonemeAssessmentWords[word_idx];
+    if (assessment && assessment.phonemes && assessment.phonemes.length) {
+        const methodLabel = phonemeAssessmentMethod === "acoustic_ctc_gop"
+            ? "Acoustic phoneme score"
+            : "Transcript fallback";
+        const phonePairs = assessment.phonemes.map(phone => {
+            const observed = phone.observed || "∅";
+            const color = phone.score >= 80 ? "green" : (phone.score >= 60 ? "orange" : "red");
+            const label = `${phone.expected} → ${observed} (${phone.score})`;
+            return `<span title="${escapeHTML(label)}" style="white-space:nowrap;color:${color};margin-right:8px">${escapeHTML(phone.expected)} | ${escapeHTML(observed)}</span>`;
+        }).join(" ");
+        document.getElementById("single_word_ipa_pair").innerHTML = `${phonePairs}<small style="display:block;color:#666">${methodLabel} · word ${assessment.score}%</small>`;
+        return;
+    }
+
     document.getElementById("single_word_ipa_pair").innerHTML = wrapWordForPlayingLink(real_transcripts_ipa[word_idx], word_idx, false, "black")
         + ' | ' + wrapWordForPlayingLink(matched_transcripts_ipa[word_idx], word_idx, true, accuracy_colors[parseInt(wordCategories[word_idx])])
 }
+
+const escapeHTML = (value) => String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 
 const recordSample = async () => {
 
@@ -358,6 +384,8 @@ const startMediaDevice = () => {
                         document.getElementById("pronunciation_accuracy").innerHTML = data.pronunciation_accuracy + "%";
                         document.getElementById("ipa_script").innerHTML = data.real_transcripts_ipa
 
+                        console.log(data)
+
                         lettersOfWordAreCorrect = data.is_letter_correct_all_words.split(" ")
 
 
@@ -368,6 +396,10 @@ const startMediaDevice = () => {
                         real_transcripts_ipa = data.real_transcripts_ipa.split(" ")
                         matched_transcripts_ipa = data.matched_transcripts_ipa.split(" ")
                         wordCategories = data.pair_accuracy_category.split(" ")
+                        phonemeAssessmentWords = data.phoneme_assessment?.words || [];
+                        phonemeAssessmentMethod = data.phoneme_assessment?.method || null;
+                        if (data.phoneme_assessment?.warnings?.length)
+                            console.warn("Phoneme assessment:", data.phoneme_assessment.warnings);
                         let currentTextWords = currentText[0].split(" ")
 
                         coloredWords = "";
@@ -397,8 +429,9 @@ const startMediaDevice = () => {
 
                     });
             }
-            catch {
+            catch (error) {
                 UIError();
+                console.log(error);
             }
         };
 
